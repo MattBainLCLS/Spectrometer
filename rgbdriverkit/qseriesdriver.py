@@ -737,7 +737,9 @@ class Qseries(calibratedspectrometer.CalibratedSpectrometer):
     def usbWrite(self, txBuf):
         if not self._isopen:
             raise IOError("USB connection is closed.")
+        #print("txbuf: ", txBuf)
         bytesWritten = self.dev.write(self.__writePipe, txBuf, self.__timeout)
+        #print("written: ", self.__writePipe, txBuf, self.__timeout)
         if bytesWritten != len(txBuf):
             _logger.error("Device write failed") # (" + bytesWritten + " of " + len(txBuf) + " bytes sent, " + errormessage ")")
             raise IOError("Device write failed")
