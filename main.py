@@ -2,6 +2,8 @@ from rgbdriverkit.qseriesdriver import Qseries
 from rgbdriverkit.calibratedspectrometer import SpectrometerProcessing
 
 import sys
+
+import numpy as np
 import matplotlib
 matplotlib.use('Qt5Agg')
 
@@ -11,8 +13,8 @@ import time
 
 
 
-
 from PyQt6 import QtCore, QtWidgets
+
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
@@ -28,37 +30,77 @@ class MplCanvas(FigureCanvasQTAgg):
 
 class MainWindow(QtWidgets.QMainWindow):
 
-    def __init__(self, xvals, yvals, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
 
-        # Create the maptlotlib FigureCanvas object,
-        # which defines a single set of axes as self.axes.
-        sc = MplCanvas(self, width=5, height=4, dpi=100)
-        sc.axes.plot(xvals, yvals)
-        self.setCentralWidget(sc)
+        self.setWindowTitle("QMini Spectrometer Interface")
+
+        devices = Qseries.search_devices()
+
+        self.Spectrometer = Qseries(devices[0])
+
+        self.Spectrometer.open()
+
+        self.nm = self.Spectrometer.get_wavelengths()
+        self.Spectrometer.exposure_time = 0.1 # in seconds
+        self.Spectrometer.processing_steps = SpectrometerProcessing.AdjustOffset # only adjust offset
+        
+
+        pagelayout = QtWidgets.QVBoxLayout()
+
+        button_layout = QtWidgets.QHBoxLayout()
+
+        grabButton = QtWidgets.QPushButton("Grab", self)
+        grabButton.clicked.connect(self.grab)
+
+        closeButton = QtWidgets.QPushButton("Close", self)
+        closeButton.clicked.connect(self.close)
+
+        button_layout.addWidget(grabButton)
+        button_layout.addWidget(closeButton)
+
+        #graph_layout = QtWidgets.QHBoxLayout()
+        self.sc = MplCanvas(self, width=5, height=4, dpi=100)
+        #graph_layout.addWidget(self.sc)
+        
+
+        #pagelayout.addLayout(graph_layout)
+        pagelayout.addWidget(self.sc)
+        pagelayout.addLayout(button_layout)
+
+        widget = QtWidgets.QWidget()
+        widget.setLayout(pagelayout)
+        self.setCentralWidget(widget)
+
+        self.line, = self.sc.axes.plot(self.nm, self.nm)
 
         self.show()
 
-devices = Qseries.search_devices()
+        
 
-Spectrometer = Qseries(devices[0])
+    def update_plot(self, xvals, yvals):
+        #self.sc.axes.plot(xvals, yvals)
+        self.line.set_xdata(xvals)
+        self.line.set_ydata(yvals)
+        self.sc.axes.set_ylim(0, 1.1*np.max(yvals))
+        self.sc.draw()
+        #self.cfig.canvas.draw_idle()
 
-Spectrometer.open()
+    def grab(self):
+        self.Spectrometer.start_exposure(1)
+        while not self.Spectrometer.available_spectra:
+            time.sleep(0.01)
+        spec = self.Spectrometer.get_spectrum_data() # Get spectrum with meta data
+        self.update_plot(self.nm, spec.Spectrum)
+        self.show()
 
-nm = Spectrometer.get_wavelengths()
-Spectrometer.exposure_time = 0.1 # in seconds
-print("Starting exposure with t=" + str(Spectrometer.exposure_time) + "s")
-Spectrometer.processing_steps = SpectrometerProcessing.AdjustOffset # only adjust offset
-Spectrometer.start_exposure(1)
-print("Waiting for spectrum...")
-while not Spectrometer.available_spectra:
-    time.sleep(0.1)
+    def close(self):
+        self.Spectrometer.close()
+        print('Closing...')
+        sys.exit()
 
-print("Spectrum available")
-spec = Spectrometer.get_spectrum_data() # Get spectrum with meta data
 
-Spectrometer.close() # Close device connection
 
 app = QtWidgets.QApplication(sys.argv)
-w = MainWindow(nm, spec.Spectrum)
+w = MainWindow()
 app.exec()
