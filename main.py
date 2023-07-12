@@ -33,22 +33,42 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
 
+        # Initialize window
+
         self.setWindowTitle("QMini Spectrometer Interface")
-
-        devices = Qseries.search_devices()
-
-        self.Spectrometer = Qseries(devices[0])
-
-        self.Spectrometer.open()
-
-        self.nm = self.Spectrometer.get_wavelengths()
-        self.Spectrometer.exposure_time = 0.1 # in seconds
-        self.Spectrometer.processing_steps = SpectrometerProcessing.AdjustOffset # only adjust offset
         
+        layout_exposure_button = QtWidgets.QHBoxLayout()
+        exposure_title = QtWidgets.QLabel()
+        self.exposure_field = QtWidgets.QLineEdit()
+        self.exposure_field.returnPressed.connect(self.update_exposure)
+        exposure_unit = QtWidgets.QLabel()
+        exposure_title.setText("Exposure: ")
+        exposure_unit.setText("s")
+        layout_exposure_button.addWidget(exposure_title)
+        layout_exposure_button.addWidget(self.exposure_field)
+        layout_exposure_button.addWidget(exposure_unit)
 
-        pagelayout = QtWidgets.QVBoxLayout()
+        
+        layout_averaging_button = QtWidgets.QHBoxLayout()
+        averaging_title = QtWidgets.QLabel()
+        self.averaging_field = QtWidgets.QLineEdit()
+        self.averaging_field.returnPressed.connect(self.update_averaging)
+        averaging_unit = QtWidgets.QLabel()
+        averaging_title.setText("Averaging: ")
+        averaging_unit.setText(" spectra")
+        layout_averaging_button.addWidget(averaging_title)
+        layout_averaging_button.addWidget(self.averaging_field)
+        layout_averaging_button.addWidget(averaging_unit)
+
+        layout_settings = QtWidgets.QVBoxLayout()
+        layout_settings.addLayout(layout_exposure_button)
+        layout_settings.addLayout(layout_averaging_button)
+
+        controllayout = QtWidgets.QVBoxLayout()
 
         button_layout = QtWidgets.QHBoxLayout()
+
+        page_layout = QtWidgets.QHBoxLayout()
 
         grabButton = QtWidgets.QPushButton("Grab", self)
         grabButton.clicked.connect(self.grab)
@@ -65,16 +85,40 @@ class MainWindow(QtWidgets.QMainWindow):
         
 
         #pagelayout.addLayout(graph_layout)
-        pagelayout.addWidget(self.sc)
-        pagelayout.addLayout(button_layout)
+        controllayout.addWidget(self.sc)
+        controllayout.addLayout(button_layout)
+
+        page_layout.addLayout(controllayout, stretch=1)
+        page_layout.addLayout(layout_settings, stretch=0)
 
         widget = QtWidgets.QWidget()
-        widget.setLayout(pagelayout)
+        widget.setLayout(page_layout)
         self.setCentralWidget(widget)
 
-        self.line, = self.sc.axes.plot(self.nm, self.nm)
+        # Initialize Spectrometer
 
+        self.start_spectrometer()
+        
+        # Finalize
+
+        #
+        
         self.show()
+
+    def start_spectrometer(self):
+        devices = Qseries.search_devices()
+
+        self.Spectrometer = Qseries(devices[0])
+
+        self.Spectrometer.open()
+
+        self.nm = self.Spectrometer.get_wavelengths()
+        #print(self.Spectrometer.exposure_time)
+        self.exposure_field.setText(str(self.Spectrometer.exposure_time))
+        self.Spectrometer.processing_steps = SpectrometerProcessing.AdjustOffset # only adjust offset
+        self.averaging_field.setText(str(self.Spectrometer.averaging))
+
+        self.line, = self.sc.axes.plot(self.nm, np.zeros(np.size(self.nm)))
 
         
 
@@ -86,6 +130,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.sc.draw()
         #self.cfig.canvas.draw_idle()
 
+    def update_exposure(self):
+        pass
+        #self.Spectrometer.exposure_time = float(self.exposure_field.text())
+        #print(self.Spectrometer.exposure_time)
+
     def grab(self):
         self.Spectrometer.start_exposure(1)
         while not self.Spectrometer.available_spectra:
@@ -94,8 +143,20 @@ class MainWindow(QtWidgets.QMainWindow):
         self.update_plot(self.nm, spec.Spectrum)
         self.show()
 
+    def update_averaging(self):
+        self.Spectrometer.averaging = int(self.averaging_field.text())
+        print(self.Spectrometer.averaging)
+
     def close(self):
-        self.Spectrometer.close()
+        try:
+            self.Spectrometer
+        except AttributeError:
+            print("Doesn't exist")
+        else:
+            print("Exists")
+            self.Spectrometer.close()
+        
+
         print('Closing...')
         sys.exit()
 
