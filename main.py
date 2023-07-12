@@ -27,6 +27,25 @@ class MplCanvas(FigureCanvasQTAgg):
         self.axes = fig.add_subplot(111)
         super(MplCanvas, self).__init__(fig)
 
+class LiveAcquire(QtCore.QObject):
+    finished = QtCore.pyqtSignal()  
+    progress = QtCore.pyqtSignal(list)  
+
+    def __init__(self, MySpectrometer):
+        super().__init__()
+        self.Spectrometer = MySpectrometer
+
+    def run(self):
+        for i in range(1,10):
+            self.progress.emit(self.grab())
+            time.sleep(1)
+
+    def grab(self):
+        self.Spectrometer.start_exposure(1)
+        while not self.Spectrometer.available_spectra:
+            time.sleep(0.01)
+        return self.Spectrometer.get_spectrum_data().Spectrum # Get spectrum with meta data
+
 
 class MainWindow(QtWidgets.QMainWindow):
 
@@ -100,6 +119,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.start_spectrometer()
         
         # Finalize
+        self.mythread = QtCore.QThread()
+        self.worker = LiveAcquire(self.Spectrometer)
+        self.worker.moveToThread(self.mythread)
+
+        self.mythread.started.connect(self.worker.run)
+
+        self.worker.finished.connect(self.mythread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.mythread.finished.connect(self.mythread.deleteLater)
+        self.worker.progress.connect(self.update_plot)
+
+        self.mythread.start()
+        print('here')
 
         #
         
@@ -122,9 +154,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         
 
-    def update_plot(self, xvals, yvals):
+    def update_plot(self, yvals):
         #self.sc.axes.plot(xvals, yvals)
-        self.line.set_xdata(xvals)
+        #self.line.set_xdata(xvals)
         self.line.set_ydata(yvals)
         self.sc.axes.set_ylim(0, 1.1*np.max(yvals))
         self.sc.draw()
