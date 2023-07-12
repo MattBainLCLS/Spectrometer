@@ -34,11 +34,22 @@ class LiveAcquire(QtCore.QObject):
     def __init__(self, MySpectrometer):
         super().__init__()
         self.Spectrometer = MySpectrometer
+        self.running = False
 
     def run(self):
-        for i in range(1,10):
+        self.running = True
+        while self.running:
             self.progress.emit(self.grab())
-            time.sleep(1)
+        #    print(self.running)
+        #    if self.running is False:
+         #       break
+         #   else:
+         #       self.progress.emit(self.grab())
+         #       time.sleep(1)
+
+    def end(self):
+        print("In end")
+        self.running = False
 
     def grab(self):
         self.Spectrometer.start_exposure(1)
@@ -49,10 +60,14 @@ class LiveAcquire(QtCore.QObject):
 
 class MainWindow(QtWidgets.QMainWindow):
 
+    #interrupt = QtCore.pyqtSignal()
+
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
 
         # Initialize window
+
+        
 
         self.setWindowTitle("QMini Spectrometer Interface")
         
@@ -95,7 +110,11 @@ class MainWindow(QtWidgets.QMainWindow):
         closeButton = QtWidgets.QPushButton("Close", self)
         closeButton.clicked.connect(self.close)
 
+        interruptButton = QtWidgets.QPushButton("Interrupt", self)
+        interruptButton.clicked.connect(self.interruptFunc)
+
         button_layout.addWidget(grabButton)
+        button_layout.addWidget(interruptButton)
         button_layout.addWidget(closeButton)
 
         #graph_layout = QtWidgets.QHBoxLayout()
@@ -129,6 +148,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.worker.finished.connect(self.worker.deleteLater)
         self.mythread.finished.connect(self.mythread.deleteLater)
         self.worker.progress.connect(self.update_plot)
+        #self.interrupt.connect(self.worker.end)
 
         self.mythread.start()
         print('here')
@@ -178,6 +198,12 @@ class MainWindow(QtWidgets.QMainWindow):
     def update_averaging(self):
         self.Spectrometer.averaging = int(self.averaging_field.text())
         print(self.Spectrometer.averaging)
+
+    def interruptFunc(self):
+        print("trying to interrupt")
+        self.worker.end()
+        #self.interrupt.emit()
+        #pass
 
     def close(self):
         try:
