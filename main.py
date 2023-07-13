@@ -3,23 +3,16 @@ from rgbdriverkit.calibratedspectrometer import SpectrometerProcessing, Spectrom
 from rgbdriverkit import calibratedspectrometer
 
 import sys
+import time
+import json
 
 import numpy as np
-import matplotlib
-matplotlib.use('Qt5Agg')
-
-import time
-
-
-
-
-
 from PyQt6 import QtCore, QtWidgets
 
-
+import matplotlib
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-
+matplotlib.use('Qt5Agg')
 
 class MplCanvas(FigureCanvasQTAgg):
 
@@ -41,26 +34,13 @@ class LiveAcquire(QtCore.QObject):
 
     def run(self):
         self.running = True
-        
-        print("Processing")
-        print(self.processing)
+
         while self.running:
             self.Spectrometer.processing_steps = self.processing
             if self.paused:
                 time.sleep(0.1)
             else:
-                #print(type(self.grab()))
                 self.spectrum.emit(self.grab())
-            
-
-                
-            
-        #    print(self.running)
-        #    if self.running is False:
-         #       break
-         #   else:
-         #       self.progress.emit(self.grab())
-         #       time.sleep(1)
 
     def pause(self):
         self.paused = True
@@ -69,15 +49,12 @@ class LiveAcquire(QtCore.QObject):
         self.paused = False
     
     def go(self):
-        print("Starting...")
         self.running = True
 
     def end(self):
-        print("In end")
         self.running = False
 
     def update_processing(self, num):
-        print("H")
         self.processing = num
 
     def grab(self):
@@ -209,16 +186,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.pauseButton.setCheckable(True)
         self.pauseButton.clicked.connect(self.interruptFunc)
 
+        self.saveButton = QtWidgets.QPushButton("Save", self)
+        self.saveButton.clicked.connect(self.save_spectrum)
+
         button_layout.addWidget(grabButton)
         button_layout.addWidget(self.pauseButton)
+        button_layout.addWidget(self.saveButton)
         button_layout.addWidget(closeButton)
-
-        #graph_layout = QtWidgets.QHBoxLayout()
-        self.sc = MplCanvas(self, width=5, height=4, dpi=100)
-        #graph_layout.addWidget(self.sc)
         
-
-        #pagelayout.addLayout(graph_layout)
+        self.sc = MplCanvas(self, width=5, height=4, dpi=100)
         controllayout.addWidget(self.sc)
         controllayout.addLayout(button_layout)
 
@@ -232,12 +208,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # Initialize Spectrometer
 
         self.start_spectrometer()
-        #self.Spectrometer.processing_steps = 1
-
-        #print("Nonlinearity Coefficients: ", self.Spectrometer.nonlinearity_coefficients)
 
         
-        # Finalize
+        # Start threading
         self.mythread = QtCore.QThread()
         self.worker = LiveAcquire(self.Spectrometer)
 
@@ -252,15 +225,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.worker.finished.connect(self.worker.deleteLater)
         self.mythread.finished.connect(self.mythread.deleteLater)
         self.worker.spectrum.connect(self.update_plot)
-        #self.interrupt.connect(self.worker.end)
 
         self.mythread.start()
-        print('here')
-
-        #
-        #self.set_checkboxes_from_number(self.worker.Spectrometer.default_processing_steps)
-        #self.set_checkboxes_from_number(1)
-        #self.set_processing_from_checkboxes()
         
         self.show()
 
@@ -279,7 +245,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def set_checkboxes_from_number(self, number):
         my_binary = str(format(number, '011b'))[::-1]
-        print(my_binary)
         self.checkbox_adjust_offset.setChecked(int(my_binary[0]))
         self.checkbox_correct_nonlinearity.setChecked(int(my_binary[1]))
         self.checkbox_remove_perm_bad_pixels.setChecked(int(my_binary[2]))
@@ -293,7 +258,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.checkbox_scale_to_16bit_range.setChecked(int(my_binary[10]))
     
     def set_processing_from_checkboxes(self):
-        print("conc")
         binary = ""
         binary += str(int(self.checkbox_adjust_offset.isChecked())) 
         binary += str(int(self.checkbox_correct_nonlinearity.isChecked()))
@@ -306,30 +270,21 @@ class MainWindow(QtWidgets.QMainWindow):
         binary += str(int(self.checkbox_sensitivity_smoothing.isChecked()))
         binary += str(int(self.checkbox_additional_filtering.isChecked()))
         binary += str(int(self.checkbox_scale_to_16bit_range.isChecked()))
-        print(int(binary[::-1], 2))
 
         self.worker.update_processing(int(binary[::-1], 2))
 
 
     def update_plot(self, spectrum):
-        #self.sc.axes.plot(xvals, yvals)
-        #self.line.set_xdata(xvals)
-        #print("Unit", spectrum.IntensityUnit.name)
-        #print(SpectrometerUnits.Unknown)
-        #self.sc.axes.yaxis.label
+        
+        self.current_spectrum = spectrum
         self.line.set_ydata(spectrum.Spectrum)
-        #print("Temperature: ", spectrum.Temperature)
         self.temperature_field.setText(str(round(spectrum.Temperature, 2)))
         self.load_level_field.setText(str(round(spectrum.LoadLevel, 2)))
         self.sc.axes.set_ylim(0, 1.1*np.max(spectrum.Spectrum))
         self.sc.draw()
-        #self.cfig.canvas.draw_idle()
 
     def update_exposure(self):
-        #pass
         self.worker.Spectrometer.exposure_time = float(self.exposure_field.text())
-        #self.Spectrometer.exposure_time = float(self.exposure_field.text())
-        #print(self.Spectrometer.exposure_time)
 
     def grab(self):
         self.Spectrometer.start_exposure(1)
@@ -340,22 +295,29 @@ class MainWindow(QtWidgets.QMainWindow):
         self.show()
 
     def update_averaging(self):
-        #self.Spectrometer.averaging = int(self.averaging_field.text())
         self.worker.Spectrometer.averaging = int(self.averaging_field.text())
-        print(self.worker.Spectrometer.averaging)
 
     def interruptFunc(self):
-        print("trying to interrupt")
-        #print("Button state = ", self.interruptButton.isChecked())
         if self.pauseButton.isChecked():
             self.worker.resume()
             self.pauseButton.setText("Pause")
         else:
             self.worker.pause()
             self.pauseButton.setText("Resume")
-        #self.worker.end()
-        #self.interrupt.emit()
-        #pass
+
+    def save_spectrum(self):
+        data_to_save = {
+            "Timestamp": str(self.current_spectrum.TimeStamp),
+            "Wavelengths": self.nm,
+            "Intensities": self.current_spectrum.Spectrum
+        }
+        print(self.current_spectrum.TimeStamp)
+
+        json_obj = json.dumps(data_to_save)
+        outfile, _ = QtWidgets.QFileDialog.getSaveFileName()
+        if outfile:
+            with open(outfile, "w") as f:
+                f.write(json_obj)
 
     def close(self):
         try:
