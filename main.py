@@ -7,7 +7,8 @@ import time
 import json
 
 import numpy as np
-from PyQt6 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtWidgets, QtGui
+
 
 import matplotlib
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
@@ -16,10 +17,67 @@ matplotlib.use('Qt5Agg')
 
 class MplCanvas(FigureCanvasQTAgg):
 
+
     def __init__(self, parent=None, width=5, height=4, dpi=100):
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(111)
-        super(MplCanvas, self).__init__(fig)
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = self.fig.add_subplot(111)
+        super(MplCanvas, self).__init__(self.fig)
+
+        self.pos_click_x = None
+        self.pos_click_y = None
+        self.pos_release_x = None
+        self.pos_release_y = None
+
+
+
+    def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self.pos_click_x = event.pos().x()/100
+            self.pos_click_y = event.pos().y()/100
+        else:
+            pass
+        
+    def mouseReleaseEvent(self, event):
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self.pos_release_x = event.pos().x()/100
+            self.pos_release_y = event.pos().y()/100
+
+            fig_width_x0 = 0
+            fig_width_x1 = self.fig.get_figwidth()
+            fig_width_y0 = 0
+            fig_width_y1 = self.fig.get_figheight()
+
+            x_bound_lower = self.axes.get_position().x0*fig_width_x1
+            x_bound_upper = self.axes.get_position().x1*fig_width_x1
+            y_bound_lower = self.axes.get_position().y0*fig_width_y1
+            y_bound_upper = self.axes.get_position().y1*fig_width_y1
+
+            ### Scale X
+            if (self.pos_click_x > x_bound_lower) & (self.pos_click_x < x_bound_upper) & (self.pos_release_x > x_bound_lower) & (self.pos_release_x < x_bound_upper):
+
+                xclick = (self.pos_click_x - x_bound_lower) / (x_bound_upper - x_bound_lower)
+                xrelease = (self.pos_release_x - x_bound_lower) / (x_bound_upper - x_bound_lower)
+                new_xlim_lower = (min([xclick, xrelease]) * (self.axes.get_xlim()[1] - self.axes.get_xlim()[0])) + self.axes.get_xlim()[0]
+                new_xlim_upper = (max([xclick, xrelease]) * (self.axes.get_xlim()[1] - self.axes.get_xlim()[0])) + self.axes.get_xlim()[0]
+
+                self.axes.set_xlim([new_xlim_lower, new_xlim_upper])
+            ### Scale Y
+            if (self.pos_click_y > y_bound_lower) & (self.pos_click_y < y_bound_upper) & (self.pos_release_y > y_bound_lower) & (self.pos_release_y < y_bound_upper):
+
+                yclick = (self.pos_click_y - y_bound_lower) / (y_bound_upper - y_bound_lower)
+                yrelease = (self.pos_release_y - y_bound_lower) / (y_bound_upper - y_bound_lower)
+                new_ylim_lower = (min([yclick, yrelease]) * (self.axes.get_ylim()[1] - self.axes.get_ylim()[0])) + self.axes.get_ylim()[0]
+                new_ylim_upper = (max([yclick, yrelease]) * (self.axes.get_ylim()[1] - self.axes.get_ylim()[0])) + self.axes.get_ylim()[0]
+    
+                self.axes.set_ylim([new_ylim_lower, new_ylim_upper])
+                
+            self.draw()
+        else:
+            pass
+
+        
+
+    
 
 class LiveAcquire(QtCore.QObject):
     finished = QtCore.pyqtSignal()  
@@ -72,8 +130,6 @@ class MainWindow(QtWidgets.QMainWindow):
         super(MainWindow, self).__init__(*args, **kwargs)
 
         # Initialize window
-
-        
 
         self.setWindowTitle("QMini Spectrometer Interface")
         
@@ -173,6 +229,9 @@ class MainWindow(QtWidgets.QMainWindow):
         controllayout = QtWidgets.QVBoxLayout()
 
         button_layout = QtWidgets.QHBoxLayout()
+        plotting_layout = QtWidgets.QHBoxLayout()
+
+        interact_layout = QtWidgets.QVBoxLayout()
 
         page_layout = QtWidgets.QHBoxLayout()
 
@@ -189,14 +248,28 @@ class MainWindow(QtWidgets.QMainWindow):
         self.saveButton = QtWidgets.QPushButton("Save", self)
         self.saveButton.clicked.connect(self.save_spectrum)
 
+        self.resetAxesButton = QtWidgets.QPushButton("Reset", self)
+        self.resetAxesButton.clicked.connect(self.reset_axes)
+
+        self.yScale = QtWidgets.QComboBox(self)
+        self.yScale.addItem('linear')
+        self.yScale.addItem('symlog')
+        self.yScale.setCurrentText('linear')
+
         button_layout.addWidget(grabButton)
         button_layout.addWidget(self.pauseButton)
         button_layout.addWidget(self.saveButton)
         button_layout.addWidget(closeButton)
+
+        plotting_layout.addWidget(self.yScale)
+        plotting_layout.addWidget(self.resetAxesButton)
+
+        interact_layout.addLayout(button_layout)
+        interact_layout.addLayout(plotting_layout)
         
         self.sc = MplCanvas(self, width=5, height=4, dpi=100)
         controllayout.addWidget(self.sc)
-        controllayout.addLayout(button_layout)
+        controllayout.addLayout(interact_layout)
 
         page_layout.addLayout(controllayout, stretch=1)
         page_layout.addLayout(layout_settings, stretch=0)
@@ -229,6 +302,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.mythread.start()
         
         self.show()
+
+    
 
     def start_spectrometer(self):
         devices = Qseries.search_devices()
@@ -281,6 +356,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.temperature_field.setText(str(round(spectrum.Temperature, 2)))
         self.load_level_field.setText(str(round(spectrum.LoadLevel, 2)))
         self.sc.axes.set_ylim(0, 1.1*np.max(spectrum.Spectrum))
+        self.sc.axes.set_yscale(self.yScale.currentText())
+        self.sc.draw()
+
+    def reset_axes(self):
+        self.sc.axes.set_xlim([min(self.nm), max(self.nm)])
+        self.sc.axes.set_ylim(0, 1.1*np.max(self.spectrum.Spectrum))
         self.sc.draw()
 
     def update_exposure(self):
