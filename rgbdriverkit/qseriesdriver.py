@@ -175,7 +175,7 @@ class Qseries(calibratedspectrometer.CalibratedSpectrometer):
 
         devs = list(devs_gen) # get list from returned generator object (even if no device was found)
 
-        if len(devs) is 0:
+        if len(devs) == 0:
             _logger.info("Could not find device.")
             return None
 
@@ -689,17 +689,17 @@ class Qseries(calibratedspectrometer.CalibratedSpectrometer):
         except:
             raise IOError("Error while searching for device.")
 
-        if self.dev is None:
-            sys.exit("Could not find device")
+        # if self.dev is None:
+        #     sys.exit("Could not find device")
 
-        if self.dev.is_kernel_driver_active(0):
-            try:
-                self.dev.detach_kernel_driver(0)
-                _logger.info("Kernel driver detached")
-            except usb.core.USBError as e:
-                sys.exit("Could not detach kernel driver: Can not use device ")
-        else:
-            _logger.info("No kernel driver attached")
+        # if self.dev.is_kernel_driver_active(0):
+        #     try:
+        #         self.dev.detach_kernel_driver(0)
+        #         _logger.info("Kernel driver detached")
+        #     except usb.core.USBError as e:
+        #         sys.exit("Could not detach kernel driver: Can not use device ")
+        # else:
+        #     _logger.info("No kernel driver attached")
 
         # Do not set the configuration if our desired configuration is already active.
         # This prevents a unintentional lightweight device reset.
