@@ -1,6 +1,5 @@
-from rgbdriverkit.qseriesdriver import Qseries
-from rgbdriverkit.calibratedspectrometer import SpectrometerProcessing, SpectrometerUnits
-from rgbdriverkit import calibratedspectrometer
+from Spectrometer import Spectrometer
+from LiveAcquire import *
 
 import sys
 import time
@@ -9,118 +8,7 @@ import json
 import numpy as np
 from PyQt6 import QtCore, QtWidgets, QtGui
 
-
-import matplotlib
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
-from matplotlib.figure import Figure
-matplotlib.use('Qt5Agg')
-
-class MplCanvas(FigureCanvasQTAgg):
-
-
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
-        self.fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = self.fig.add_subplot(111)
-        super(MplCanvas, self).__init__(self.fig)
-
-        self.pos_click_x = None
-        self.pos_click_y = None
-        self.pos_release_x = None
-        self.pos_release_y = None
-
-
-
-    def mousePressEvent(self, event):
-        if event.button() == QtCore.Qt.MouseButton.LeftButton:
-            self.pos_click_x = event.pos().x()/100
-            self.pos_click_y = event.pos().y()/100
-        else:
-            pass
-        
-    def mouseReleaseEvent(self, event):
-        if event.button() == QtCore.Qt.MouseButton.LeftButton:
-            self.pos_release_x = event.pos().x()/100
-            self.pos_release_y = event.pos().y()/100
-
-            fig_width_x0 = 0
-            fig_width_x1 = self.fig.get_figwidth()
-            fig_width_y0 = 0
-            fig_width_y1 = self.fig.get_figheight()
-
-            x_bound_lower = self.axes.get_position().x0*fig_width_x1
-            x_bound_upper = self.axes.get_position().x1*fig_width_x1
-            y_bound_lower = self.axes.get_position().y0*fig_width_y1
-            y_bound_upper = self.axes.get_position().y1*fig_width_y1
-
-            ### Scale X
-            if (self.pos_click_x > x_bound_lower) & (self.pos_click_x < x_bound_upper) & (self.pos_release_x > x_bound_lower) & (self.pos_release_x < x_bound_upper):
-
-                xclick = (self.pos_click_x - x_bound_lower) / (x_bound_upper - x_bound_lower)
-                xrelease = (self.pos_release_x - x_bound_lower) / (x_bound_upper - x_bound_lower)
-                new_xlim_lower = (min([xclick, xrelease]) * (self.axes.get_xlim()[1] - self.axes.get_xlim()[0])) + self.axes.get_xlim()[0]
-                new_xlim_upper = (max([xclick, xrelease]) * (self.axes.get_xlim()[1] - self.axes.get_xlim()[0])) + self.axes.get_xlim()[0]
-
-                self.axes.set_xlim([new_xlim_lower, new_xlim_upper])
-            ### Scale Y
-            if (self.pos_click_y > y_bound_lower) & (self.pos_click_y < y_bound_upper) & (self.pos_release_y > y_bound_lower) & (self.pos_release_y < y_bound_upper):
-
-                yclick = (self.pos_click_y - y_bound_lower) / (y_bound_upper - y_bound_lower)
-                yrelease = (self.pos_release_y - y_bound_lower) / (y_bound_upper - y_bound_lower)
-                new_ylim_lower = (min([yclick, yrelease]) * (self.axes.get_ylim()[1] - self.axes.get_ylim()[0])) + self.axes.get_ylim()[0]
-                new_ylim_upper = (max([yclick, yrelease]) * (self.axes.get_ylim()[1] - self.axes.get_ylim()[0])) + self.axes.get_ylim()[0]
-    
-                self.axes.set_ylim([new_ylim_lower, new_ylim_upper])
-                
-            self.draw()
-        else:
-            pass
-
-        
-
-    
-
-class LiveAcquire(QtCore.QObject):
-    finished = QtCore.pyqtSignal()  
-    spectrum = QtCore.pyqtSignal(calibratedspectrometer.SpectrumData)
-
-    def __init__(self, MySpectrometer):
-        super().__init__()
-        self.Spectrometer = MySpectrometer
-        self.running = False
-        self.paused = True
-        self.processing = 0
-
-    def run(self):
-        self.running = True
-
-        while self.running:
-            self.Spectrometer.processing_steps = self.processing
-            if self.paused:
-                time.sleep(0.1)
-            else:
-                self.spectrum.emit(self.grab())
-
-    def pause(self):
-        self.paused = True
-
-    def resume(self):
-        self.paused = False
-    
-    def go(self):
-        self.running = True
-
-    def end(self):
-        self.running = False
-
-    def update_processing(self, num):
-        self.processing = num
-
-    def grab(self):
-        self.Spectrometer.start_exposure(1)
-        while not self.Spectrometer.available_spectra:
-            time.sleep(0.01)
-        return self.Spectrometer.get_spectrum_data() # Get spectrum with meta data
-
+from MPLCanvas import *
 
 class MainWindow(QtWidgets.QMainWindow):
 
@@ -224,7 +112,11 @@ class MainWindow(QtWidgets.QMainWindow):
         layout_settings.addLayout(layout_averaging_button)
         layout_settings.addLayout(layout_temperature)
         layout_settings.addLayout(layout_load_level)
-        layout_settings.addLayout(layout_checkboxes)
+        #layout_settings.addLayout(layout_checkboxes)
+
+        layout_settings_master = QtWidgets.QHBoxLayout()
+        layout_settings_master.addLayout(layout_settings)
+        layout_settings_master.addLayout(layout_checkboxes)
 
         controllayout = QtWidgets.QVBoxLayout()
 
@@ -233,7 +125,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         interact_layout = QtWidgets.QVBoxLayout()
 
-        page_layout = QtWidgets.QHBoxLayout()
+        page_layout = QtWidgets.QVBoxLayout()
 
         grabButton = QtWidgets.QPushButton("Grab", self)
         grabButton.clicked.connect(self.grab)
@@ -272,7 +164,7 @@ class MainWindow(QtWidgets.QMainWindow):
         controllayout.addLayout(interact_layout)
 
         page_layout.addLayout(controllayout, stretch=1)
-        page_layout.addLayout(layout_settings, stretch=0)
+        page_layout.addLayout(layout_settings_master, stretch=0)
 
         widget = QtWidgets.QWidget()
         widget.setLayout(page_layout)
@@ -280,12 +172,25 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Initialize Spectrometer
 
-        self.start_spectrometer()
+        #self.start_spectrometer()
+
+        self.mySpectrometer = Spectrometer()
+        self.line, = self.sc.spectral_axes.plot(self.mySpectrometer.nm, np.zeros(np.size(self.mySpectrometer.nm)))
 
         
+        self.exposure_field.setText(str(self.mySpectrometer.exposure_time))
+        self.averaging_field.setText(str(self.mySpectrometer.averaging))
+
+        # Set up Fourier Transform basis
+        self.times = np.linspace(-500E-15, 500E-15, 4096)
+        self.frequencies = np.fft.fftfreq(4096, abs(self.times[1]-self.times[0]))
+
+        self.plot_time, = self.sc.temporal_axes.plot(self.times, np.zeros(np.size(self.times)))
+
         # Start threading
         self.mythread = QtCore.QThread()
-        self.worker = LiveAcquire(self.Spectrometer)
+        #self.worker = LiveAcquire(self.Spectrometer)
+        self.worker = LiveAcquire(self.mySpectrometer)
 
         self.set_checkboxes_from_number(847)
         self.set_processing_from_checkboxes()
@@ -303,20 +208,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         self.show()
 
-    
 
-    def start_spectrometer(self):
-        devices = Qseries.search_devices()
-
-        self.Spectrometer = Qseries(devices[0])
-
-        self.Spectrometer.open()
-
-        self.nm = self.Spectrometer.get_wavelengths()
-        self.exposure_field.setText(str(self.Spectrometer.exposure_time))
-        self.averaging_field.setText(str(self.Spectrometer.averaging))
-
-        self.line, = self.sc.axes.plot(self.nm, np.zeros(np.size(self.nm)))
 
     def set_checkboxes_from_number(self, number):
         my_binary = str(format(number, '011b'))[::-1]
@@ -351,27 +243,41 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def update_plot(self, spectrum):
         
-        self.current_spectrum = spectrum
-        self.line.set_ydata(spectrum.Spectrum)
-        self.temperature_field.setText(str(round(spectrum.Temperature, 2)))
-        self.load_level_field.setText(str(round(spectrum.LoadLevel, 2)))
-        self.sc.axes.set_ylim(0, 1.1*np.max(spectrum.Spectrum))
-        self.sc.axes.set_yscale(self.yScale.currentText())
+        #self.current_spectrum = spectrum
+        #self.line.set_ydata(spectrum.Spectrum)
+        self.line.set_ydata(spectrum)
+        #self.temperature_field.setText(str(round(spectrum.Temperature, 2)))
+        #self.load_level_field.setText(str(round(spectrum.LoadLevel, 2)))
+        #self.sc.spectral_axes.set_ylim(0, 1.1*np.max(spectrum.Spectrum))
+        #self.sc.spectral_axes.set_yscale(self.yScale.currentText())
+        self.sc.spectral_axes.set_ylim(0, 1.1*np.max(spectrum))
+        self.sc.spectral_axes.set_yscale(self.yScale.currentText())
+
+        # Plot Fourier transform
+        self.I_frequencies = np.interp(self.frequencies, np.flip(self.mySpectrometer.sample_frequencies), np.flip(spectrum))
+        self.E_frequencies = np.sqrt(self.I_frequencies)
+        self.E_times = np.fft.fftshift(np.fft.fft(self.E_frequencies))
+        self.I_times = np.power(np.abs(self.E_times), 2)
+        self.plot_time.set_ydata(self.I_times)
+        #self.sc.temporal_axes.set_ylim(0, 1.1*np.max(self.I_times))
+        #self.plot_time.set_ylim(0, 1.1*np.max(self.I_times))
         self.sc.draw()
 
     def reset_axes(self):
-        self.sc.axes.set_xlim([min(self.nm), max(self.nm)])
-        self.sc.axes.set_ylim(0, 1.1*np.max(self.spectrum.Spectrum))
+        self.sc.spectral_axes.set_xlim([min(self.nm), max(self.nm)])
+        self.sc.spectral_axes.set_ylim(0, 1.1*np.max(self.spectrum.Spectrum))
         self.sc.draw()
 
     def update_exposure(self):
         self.worker.Spectrometer.exposure_time = float(self.exposure_field.text())
 
     def grab(self):
-        self.Spectrometer.start_exposure(1)
-        while not self.Spectrometer.available_spectra:
-            time.sleep(0.01)
-        spec = self.Spectrometer.get_spectrum_data() # Get spectrum with meta data
+        #self.MySpectrometer.start_exposure(1)
+        #while not self.MySpectrometer.available_spectra:
+        #    time.sleep(0.01)
+        #spec = self.Spectrometer.get_spectrum_data() # Get spectrum with meta data
+        spec = self.mySpectrometer.grab()
+        print(type(spec))
         self.update_plot(spec)
         self.show()
 
@@ -402,13 +308,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def close(self):
         try:
-            self.Spectrometer
+            self.mySpectrometer
         except AttributeError:
             print("Doesn't exist")
         else:
             print("Exists")
             self.worker.end()
-            self.Spectrometer.close()
+            self.mySpectrometer.close()
         
 
         print('Closing...')
