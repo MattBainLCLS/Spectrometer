@@ -20,7 +20,10 @@ class Spectrometer():
         self.averaging = self.Spectrometer.averaging
 
         
-        self.sample_frequencies = np.divide(const.c, self.nm)
+        self.sample_frequencies = np.divide(const.c, np.multiply(self.nm, 1E-9))
+
+        self.central_frequency = np.divide(np.max(self.sample_frequencies) + np.min(self.sample_frequencies), 2)
+
 
     def grab(self):
         self.Spectrometer.start_exposure(1)

@@ -4,6 +4,7 @@ from LiveAcquire import *
 import sys
 import time
 import json
+import scipy.constants as const
 
 import numpy as np
 from PyQt6 import QtCore, QtWidgets, QtGui
@@ -183,9 +184,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Set up Fourier Transform basis
         self.times = np.linspace(-500E-15, 500E-15, 4096)
-        self.frequencies = np.fft.fftfreq(4096, abs(self.times[1]-self.times[0]))
+        self.frequencies = np.fft.fftshift(np.fft.fftfreq(4096, abs(self.times[1]-self.times[0])))
+        self.I_frequencies = np.zeros(np.size(self.times))
 
-        self.plot_time, = self.sc.temporal_axes.plot(self.times, np.zeros(np.size(self.times)))
+        self.plot_time, = self.sc.temporal_axes.plot(self.times, self.I_frequencies)
 
         # Start threading
         self.mythread = QtCore.QThread()
@@ -254,12 +256,25 @@ class MainWindow(QtWidgets.QMainWindow):
         self.sc.spectral_axes.set_yscale(self.yScale.currentText())
 
         # Plot Fourier transform
-        self.I_frequencies = np.interp(self.frequencies, np.flip(self.mySpectrometer.sample_frequencies), np.flip(spectrum))
-        self.E_frequencies = np.sqrt(self.I_frequencies)
-        self.E_times = np.fft.fftshift(np.fft.fft(self.E_frequencies))
+        #   Jacobian xform
+        self.sample_frequency_Is = spectrum
+        #self.sample_frequency_Is = np.multiply(spectrum, np.divide(const.c, np.power(self.mySpectrometer.sample_frequencies, 2)))
+
+        #   Interpolation subtracting central frequency
+        #self.I_frequencies = np.zeros(np.shape())
+        
+        self.I_frequencies = np.interp(self.frequencies, np.flip(self.mySpectrometer.sample_frequencies - self.mySpectrometer.central_frequency), np.flip(self.sample_frequency_Is))
+
+        self.I_frequencies[np.argwhere(self.I_frequencies < 0.05*np.max(self.I_frequencies))] = 0
+        self.E_frequencies = np.sqrt(self.I_frequencies - np.min(self.I_frequencies))
+
+        self.E_times = np.fft.fftshift(np.fft.ifft(self.E_frequencies))
+
         self.I_times = np.power(np.abs(self.E_times), 2)
         self.plot_time.set_ydata(self.I_times)
-        #self.sc.temporal_axes.set_ylim(0, 1.1*np.max(self.I_times))
+
+        self.sc.temporal_axes.set_ylim(0, 1.1*np.max(self.I_times))
+        self.sc.temporal_axes.set_xlim(-50E-15, 50E-15)
         #self.plot_time.set_ylim(0, 1.1*np.max(self.I_times))
         self.sc.draw()
 
@@ -277,7 +292,7 @@ class MainWindow(QtWidgets.QMainWindow):
         #    time.sleep(0.01)
         #spec = self.Spectrometer.get_spectrum_data() # Get spectrum with meta data
         spec = self.mySpectrometer.grab()
-        print(type(spec))
+
         self.update_plot(spec)
         self.show()
 
