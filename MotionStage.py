@@ -48,16 +48,9 @@ class KDC101():
         if self.isConnected():
             self.device.EnableDevice()
 
-        # Surely must be able to replace this with it detecting the attached stage and loading the 
-        #m_config = self.device.LoadMotorConfiguration(str(serial), DeviceConfiguration.DeviceSettingsUseOptionType.UseFileSettings)
         self.device.LoadMotorConfiguration(str(serial))
 
         self.AdvancedMotorLimits = self.device.get_AdvancedMotorLimits()
-        #m_config.DeviceSettingsName = "MTS25-Z8"
-
-        # m_config.UpdateCurrentConfiguration()
-
-        # self.device.SetSettings(self.device.MotorDeviceSettings, True, False)
 
     def isConnected(self):
         return self.device.IsConnected
@@ -77,7 +70,7 @@ class KDC101():
             raise ValueError("Position is outside stage hardware limits.")
 
     def isMotionDone(self):
-        return not self.device.IsInMotion
+        return not self.device.Status.IsInMotion
     
     def waitForMotion(self, updateTime = 0.1):
         while self.device.Status.IsInMotion == True:
@@ -89,6 +82,7 @@ class KDC101():
 
     def home(self):
         self.device.Home(0) # 0 says return the function immediately (gives us the option to choose waiting via waitForMotionDone or read current position during homing motion)
+        time.sleep(0.25)
 
     def close(self):
         if self.isConnected():
