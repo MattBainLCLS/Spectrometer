@@ -1,9 +1,12 @@
-from Spectrometer import Spectrometer
-import numpy as np
 
-mySpectrometer = Spectrometer()
+import ui_MotionStage
+from PyQt6.QtWidgets import QApplication, QWidget
 
-spectrum = mySpectrometer.grab()
-wavelengths = mySpectrometer.get_wavelengths()
-print(np.shape(spectrum))
-print(np.shape(wavelengths))
+app = QApplication([])
+
+
+window = ui_MotionStage.ui_MotionStage()
+
+window.show()
+
+app.exec()
