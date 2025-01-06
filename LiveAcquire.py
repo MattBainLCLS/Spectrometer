@@ -4,7 +4,7 @@ from Spectrometer import Spectrometer
 import time
 
 class LiveAcquire(QtCore.QObject):
-    #spectrum = QtCore.pyqtSignal(np.ndarray)
+
     spectrum = QtCore.pyqtSignal(np.ndarray)
     finished = QtCore.pyqtSignal()  
     
