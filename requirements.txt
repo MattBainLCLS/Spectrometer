@@ -3,3 +3,4 @@ numpy
 PyQt6
 pyusb
 scipy
+pythonnet

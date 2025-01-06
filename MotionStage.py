@@ -35,8 +35,7 @@ class KDC101():
             self.device = KCubeDCServo.CreateKCubeDCServo(str(serial))
         except:
             raise NameError("Device not found.")
-        
-        print("Is device connected? " + str(self.isConnected()))
+
 
         self.device.Connect(str(serial))
 
