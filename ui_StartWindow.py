@@ -17,6 +17,7 @@ class ui_StartWindow(QtWidgets.QWidget):
         super().__init__()
 
         self.spectrometer_window = None
+        self.delay_stage_window = None
 
         self.button_spectrometer = QtWidgets.QPushButton()
         self.button_spectrometer.setText("Spectrometer")
@@ -44,27 +45,28 @@ class ui_StartWindow(QtWidgets.QWidget):
             case "Windows":
                 self.button_spectrometer.setEnabled(True)
                 self.button_delay_stage.setEnabled(True)
-                self.button_delay_stage.setEnabled(True)
+                self.button_frog.setEnabled(True)
             case "Linux":
                 self.button_spectrometer.setEnabled(False)
                 self.button_delay_stage.setEnabled(False)
-                self.button_delay_stage.setEnabled(False)
+                self.button_frog.setEnabled(False)
             case "Darwin":
                 
                 self.button_spectrometer.setEnabled(True)
                 self.button_delay_stage.setEnabled(False)
-                self.button_delay_stage.setEnabled(False)
+                self.button_frog.setEnabled(False)
 
         self.show()
 
     def onSpectrometerClicked(self):
         if self.spectrometer_window is None:
             self.spectrometer_window = ui_Spectrometer.ui_Spectrometer()
-            
         self.spectrometer_window.show()
 
     def onDelayStageClicked(self):
-        delay_stage_window = ui_MotionStage.ui_MotionStage()
+        if self.delay_stage_window is None:
+            self.delay_stage_window = ui_MotionStage.ui_MotionStage()
+        self.delay_stage_window.show()
 
     def onFROGClicked(self):
         pass

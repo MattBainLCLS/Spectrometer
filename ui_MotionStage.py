@@ -1,5 +1,6 @@
 from PyQt6 import QtCore, QtWidgets, QtGui
 import MotionStage
+import ui_ConnectDelayStage
 import time
 
 class ui_MotionStage(QtWidgets.QWidget):
@@ -10,21 +11,17 @@ class ui_MotionStage(QtWidgets.QWidget):
         self.setWindowTitle("Delay Stage Interface")
 
         # Connect
-        serial_label = QtWidgets.QLabel()
-        serial_label.setText("Serial Number: ")
-        self.serial = QtWidgets.QLineEdit()
-        self.serial.setText("27005423")
         self.connect = QtWidgets.QPushButton()
         self.connect.setText("Connect")
 
         layout_connect = QtWidgets.QHBoxLayout()
-        layout_connect.addWidget(serial_label)
-        layout_connect.addWidget(self.serial)
+        #layout_connect.addWidget(serial_label)
+        #layout_connect.addWidget(self.serial)
         layout_connect.addWidget(self.connect)
 
         #   Connect slots
         self.connect.clicked.connect(self.on_clicked_connect)
-        self.serial.returnPressed.connect(self.on_clicked_connect)
+        #self.serial.returnPressed.connect(self.on_clicked_connect)
 
         # Jog Buttons
         #   Jog backward
@@ -148,22 +145,9 @@ class ui_MotionStage(QtWidgets.QWidget):
     def on_clicked_connect(self):
         
         if self.connect.text() == "Connect":
-            print(self.serial.text())
-            try:
-                self.delay_stage = MotionStage.KDC101(self.serial.text())
-            except:
-                print("connection Failed")
-            else:
-                print("Connected successfully!")
-                self.connect.setText("Disconnect")
-                self.connect.setStyleSheet("color: #B91B1B")
-                self.button_home.setEnabled(True)
-                self.goto_edit.setEnabled(True)
-                self.jog_size_edit.setEnabled(True)
-                self.button_jog_backward.setEnabled(True)
-                self.button_jog_forward.setEnabled(True)
-                self.updatePosition()
-                self.updateLimits()
+            self.window_connect_delay_stage = ui_ConnectDelayStage.ui_ConnectDelayStage()
+            self.window_connect_delay_stage.device_found.connect(self.onDeviceSelected)
+            self.window_connect_delay_stage.show()
 
         elif self.connect.text() == "Disconnect":
             try:
@@ -182,6 +166,23 @@ class ui_MotionStage(QtWidgets.QWidget):
                 self.button_jog_backward.setEnabled(False)
                 self.button_jog_forward.setEnabled(False)
 
+    def onDeviceSelected(self, device):
+        try:
+                self.delay_stage = MotionStage.MotionStage(device)
+        except:
+            print("connection Failed")
+        else:
+            print("Connected successfully!")
+            self.connect.setText("Disconnect")
+            self.connect.setStyleSheet("color: #B91B1B")
+            self.button_home.setEnabled(True)
+            self.goto_edit.setEnabled(True)
+            self.jog_size_edit.setEnabled(True)
+            self.button_jog_backward.setEnabled(True)
+            self.button_jog_forward.setEnabled(True)
+            self.updatePosition()
+            self.updateLimits()
+
     def onClickedHome(self):
         self.button_home.setText("Homing...")
         print("Homing...")
@@ -193,9 +194,8 @@ class ui_MotionStage(QtWidgets.QWidget):
         print("Homed")
 
     def onChangedGoto(self):
-        print("Going to ", str(self.goto_edit.text()), " ps")
+
         pos_mm = self.mm_from_ps(self.goto_edit.text())
-        print("pos = ", str(pos_mm))
         self.delay_stage.goTo(pos_mm)
         i=0
         while not self.delay_stage.isMotionDone():

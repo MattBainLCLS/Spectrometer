@@ -9,18 +9,38 @@ from System import Decimal
 clr.AddReference("C:\\Program Files\\Thorlabs\\Kinesis\\Thorlabs.MotionControl.DeviceManagerCLI.dll")
 clr.AddReference("C:\\Program Files\\Thorlabs\\Kinesis\\Thorlabs.MotionControl.GenericMotorCLI.dll")
 clr.AddReference("C:\\Program Files\\Thorlabs\\Kinesis\\ThorLabs.MotionControl.KCube.DCServoCLI.dll")
-#from DeviceManagerCLI import *
+
 from Thorlabs.MotionControl.DeviceManagerCLI import *
 from Thorlabs.MotionControl.GenericMotorCLI import *
 from Thorlabs.MotionControl.KCube.DCServoCLI import *
 
-def get_device_list() -> list:
+class FoundDevice():
+    
+    def __init__(self, manufacturer = "", model = "", serial = ""):
+        self.manufacturer = manufacturer
+        self.model = model
+        self.serial = serial
+    
+def MotionStage(FoundDevice):
+    match FoundDevice.manufacturer:
+        case "Thorlabs":
+            return ThorlabsMotionStage(FoundDevice.serial)
+
+
+def find_Thorlabs_devices(found_device_list) -> list:
     # Scan the usb ports for available devices connected but NOT open
     DeviceManagerCLI.BuildDeviceList()
     #queries the devices attached
-    return(list(DeviceManagerCLI.GetDeviceList()))
 
-class KDC101():
+    number_of_devices = DeviceManagerCLI.GetDeviceListSize()
+    serial_numbers = list(DeviceManagerCLI.GetDeviceList())
+    type_numbers = list(DeviceManagerCLI.GetDeviceTypesList()) # Should be an enum to conver this to a model number but I can't figure it out right now
+
+    for i in range(0, number_of_devices):
+        found_device_list.append(FoundDevice(manufacturer = "Thorlabs", model = type_numbers[i], serial = serial_numbers[i]))
+    return found_device_list
+
+class ThorlabsMotionStage():
 
     def __init__(self, serial=None):
         if serial is None:
