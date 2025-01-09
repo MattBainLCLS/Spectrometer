@@ -1,5 +1,5 @@
 from PyQt6 import QtCore, QtWidgets, QtGui
-import MotionStage
+import Motion._thorlabs as _thorlabs
 import ui_ConnectDelayStage
 import time
 
@@ -168,7 +168,7 @@ class ui_MotionStage(QtWidgets.QWidget):
 
     def onDeviceSelected(self, device):
         try:
-                self.delay_stage = MotionStage.MotionStage(device)
+                self.delay_stage = _thorlabs.MotionStage(device)
         except:
             print("connection Failed")
         else:

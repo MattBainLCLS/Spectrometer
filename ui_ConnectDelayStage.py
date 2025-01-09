@@ -1,10 +1,10 @@
 from PyQt6 import QtCore, QtWidgets, QtGui
-import MotionStage
+import Motion._thorlabs as _thorlabs
 
 class ui_ConnectDelayStage(QtWidgets.QWidget):
 
     # Signals
-    device_found = QtCore.pyqtSignal(MotionStage.FoundDevice)
+    device_found = QtCore.pyqtSignal(_thorlabs.FoundDevice)
     
     def __init__(self):
         super().__init__()
@@ -12,7 +12,7 @@ class ui_ConnectDelayStage(QtWidgets.QWidget):
         self.setWindowTitle("Find Motion Stage")
 
         self.found_device_list = list()
-        self.found_device_list = MotionStage.find_Thorlabs_devices(self.found_device_list)
+        self.found_device_list = _thorlabs.find_Thorlabs_devices(self.found_device_list)
 
         # Space for more "find devices" functions for other manufacturers
 

@@ -1,15 +1,16 @@
-import MotionStage
-import ui_ConnectDelayStage
+import Spectrometers
+import matplotlib.pyplot as plt
 
-from PyQt6.QtWidgets import QApplication, QWidget
+#find_Avantes_devices()
 
-app = QApplication([])
+spectrometer = Spectrometers.Avantes()
 
-window = ui_ConnectDelayStage.ui_ConnectDelayStage()
+data = spectrometer.grab()
 
-window.show()
+plt.plot(spectrometer.wavelengths, data)
+plt.show()
 
-app.exec()
-#found_device_list = list()
-#print(type(MotionStage.get_device_list(found_device_list)))
+
+        
+
 
