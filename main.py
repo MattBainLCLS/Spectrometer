@@ -1,5 +1,5 @@
 import ui_StartWindow
-from PyQt6.QtWidgets import QApplication, QWidget
+from PyQt6.QtWidgets import QApplication
 
 app = QApplication([])
 
