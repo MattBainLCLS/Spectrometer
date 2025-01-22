@@ -7,3 +7,5 @@ match system:
         from ._thorlabs import *
     case "Darwin":
         pass
+
+from ._dummy import *

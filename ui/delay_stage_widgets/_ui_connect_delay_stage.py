@@ -1,6 +1,10 @@
 from PyQt6 import QtCore, QtWidgets, QtGui
 import hardware.motion
 
+import platform
+
+system = platform.system()
+
 class ui_ConnectDelayStage(QtWidgets.QWidget):
 
     # Signals
@@ -12,7 +16,11 @@ class ui_ConnectDelayStage(QtWidgets.QWidget):
         self.setWindowTitle("Find Motion Stage")
 
         self.found_device_list = list()
-        self.found_device_list = hardware.motion.find_Thorlabs_devices(self.found_device_list)
+
+        if platform.system() == "Windows":
+            self.found_device_list += hardware.motion.ThorlabsMotionStage.find_devices()
+
+        self.found_device_list += hardware.motion.Dummy.find_devices()
 
         # Space for more "find devices" functions for other manufacturers
 

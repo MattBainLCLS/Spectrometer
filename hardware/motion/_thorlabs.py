@@ -16,24 +16,24 @@ from Thorlabs.MotionControl.DeviceManagerCLI import *
 from Thorlabs.MotionControl.GenericMotorCLI import *
 from Thorlabs.MotionControl.KCube.DCServoCLI import *
     
-def MotionStage(FoundDevice):
-    match FoundDevice.manufacturer:
-        case "Thorlabs":
-            return ThorlabsMotionStage(hardware.FoundDevice.serial)
+# def MotionStage(FoundDevice):
+#     match FoundDevice.manufacturer:
+#         case "Thorlabs":
+#             return ThorlabsMotionStage(hardware.FoundDevice.serial)
 
 
-def find_Thorlabs_devices(found_device_list) -> list:
-    # Scan the usb ports for available devices connected but NOT open
-    DeviceManagerCLI.BuildDeviceList()
-    #queries the devices attached
+# def find_Thorlabs_devices(found_device_list) -> list:
+#     # Scan the usb ports for available devices connected but NOT open
+#     DeviceManagerCLI.BuildDeviceList()
+#     #queries the devices attached
 
-    number_of_devices = DeviceManagerCLI.GetDeviceListSize()
-    serial_numbers = list(DeviceManagerCLI.GetDeviceList())
-    type_numbers = list(DeviceManagerCLI.GetDeviceTypesList()) # Should be an enum to conver this to a model number but I can't figure it out right now
+#     number_of_devices = DeviceManagerCLI.GetDeviceListSize()
+#     serial_numbers = list(DeviceManagerCLI.GetDeviceList())
+#     type_numbers = list(DeviceManagerCLI.GetDeviceTypesList()) # Should be an enum to conver this to a model number but I can't figure it out right now
 
-    for i in range(0, number_of_devices):
-        found_device_list.append(hardware.FoundDevice(manufacturer = "Thorlabs", model = type_numbers[i], serial = serial_numbers[i]))
-    return found_device_list
+#     for i in range(0, number_of_devices):
+#         found_device_list.append(hardware.FoundDevice(manufacturer = "Thorlabs", model = type_numbers[i], serial = serial_numbers[i]))
+#     return found_device_list
 
 class ThorlabsMotionStage():
 
@@ -65,7 +65,9 @@ class ThorlabsMotionStage():
 
         self.device.LoadMotorConfiguration(str(serial))
 
-        self.AdvancedMotorLimits = self.device.get_AdvancedMotorLimits()
+        AdvancedMotorLimits = self.device.get_AdvancedMotorLimits()
+
+        self.motor_limits = (Decimal.ToDouble(AdvancedMotorLimits.LengthMinimum), Decimal.ToDouble(AdvancedMotorLimits.LengthMaximum))
 
     def isConnected(self):
         return self.device.IsConnected
@@ -92,7 +94,7 @@ class ThorlabsMotionStage():
             time.sleep(updateTime) # check at 10Hz
 
     def getLimits(self):
-        return (Decimal.ToDouble(self.AdvancedMotorLimits.LengthMinimum), Decimal.ToDouble(self.AdvancedMotorLimits.LengthMaximum))
+        return self.motor_limits
 
 
     def home(self):
@@ -102,10 +104,25 @@ class ThorlabsMotionStage():
     def close(self):
         if self.isConnected():
             self.device.Disconnect()
-            print("Disconnected")
 
     def __del__(self):
         pass
 
     def real_to_device(value):
         return
+
+    @staticmethod
+    def find_devices():
+
+        found_device_list = list()
+        # Scan the usb ports for available devices connected but NOT open
+        DeviceManagerCLI.BuildDeviceList()
+        #queries the devices attached
+
+        number_of_devices = DeviceManagerCLI.GetDeviceListSize()
+        serial_numbers = list(DeviceManagerCLI.GetDeviceList())
+        type_numbers = list(DeviceManagerCLI.GetDeviceTypesList()) # Should be an enum to conver this to a model number but I can't figure it out right now
+
+        for i in range(0, number_of_devices):
+            found_device_list.append(hardware.FoundDevice(manufacturer = "Thorlabs", model = type_numbers[i], serial = serial_numbers[i]))
+        return found_device_list

@@ -27,6 +27,7 @@ class ui_Spectrometer(QtWidgets.QWidget):
 
         self.button_connect = QtWidgets.QPushButton()
         self.button_connect.setText("Connect")
+        self.button_connect.setStyleSheet("color: #4ECE44")
         # Todo add connected light
         layout_connect = QtWidgets.QHBoxLayout()
         layout_connect.addWidget(self.button_connect)
@@ -106,6 +107,8 @@ class ui_Spectrometer(QtWidgets.QWidget):
         # self.mythread.start()
         # #self.show()
 
+        self.spectrometer = None
+
     def on_clicked_connect(self):
         
         if self.button_connect.text() == "Connect":
@@ -120,6 +123,8 @@ class ui_Spectrometer(QtWidgets.QWidget):
                 self.spectrometer.end()
                 #self.delay_stage.close()
                 #self.delay_stage = None
+                self.button_connect.setText("Connect")
+                self.button_connect.setStyle("color: #4ECE44")
             except:
                 print("Disconnection Failed")
                 exit()
@@ -176,8 +181,10 @@ class ui_Spectrometer(QtWidgets.QWidget):
 
 
     def on_clicked_grab(self):
-        self.spectrum_buffer.append_spectrum(self.spectrometer.grab())
+        spectrum = self.spectrometer.grab()
+        self.spectrum_buffer.append_spectrum(spectrum)
         self.update_plot(self.spectrum_buffer.mean())
+        return spectrum
         
 
     def on_clicked_run(self):

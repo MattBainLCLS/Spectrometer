@@ -4,6 +4,7 @@ import ui.delay_stage_widgets._ui_connect_delay_stage as _ui_connect_delay_stage
 import time
 
 class ui_MotionStage(QtWidgets.QWidget):
+    delay_stage_connected = QtCore.pyqtSignal()
     
     def __init__(self):
         super().__init__()
@@ -134,6 +135,8 @@ class ui_MotionStage(QtWidgets.QWidget):
 
         # Default state
 
+        self.delay_stage = None
+
         self.connect.setStyleSheet("color: #4ECE44")
         self.button_home.setEnabled(False)
         
@@ -146,7 +149,7 @@ class ui_MotionStage(QtWidgets.QWidget):
         
         if self.connect.text() == "Connect":
             self.window_connect_delay_stage = _ui_connect_delay_stage.ui_ConnectDelayStage()
-            self.window_connect_delay_stage.device_found.connect(self.onDeviceSelected)
+            self.window_connect_delay_stage.device_found.connect(self.on_device_selected)
             self.window_connect_delay_stage.show()
 
         elif self.connect.text() == "Disconnect":
@@ -166,9 +169,14 @@ class ui_MotionStage(QtWidgets.QWidget):
                 self.button_jog_backward.setEnabled(False)
                 self.button_jog_forward.setEnabled(False)
 
-    def onDeviceSelected(self, device):
+    def on_device_selected(self, device):
         try:
-                self.delay_stage = hardware.motion.MotionStage(device)
+            match device.manufacturer:
+                case "dummy":
+                    self.delay_stage = hardware.motion.Dummy()
+                case "Thorlabs":
+                    self.delay_stage = hardware.motion.ThorlabsMotionStage(device)
+
         except:
             print("connection Failed")
         else:
@@ -183,6 +191,8 @@ class ui_MotionStage(QtWidgets.QWidget):
             self.updatePosition()
             self.updateLimits()
 
+            self.delay_stage_connected.emit()
+
     def onClickedHome(self):
         self.button_home.setText("Homing...")
         print("Homing...")
@@ -194,7 +204,7 @@ class ui_MotionStage(QtWidgets.QWidget):
         print("Homed")
 
     def onChangedGoto(self):
-
+        print("onChangedGoto")
         pos_mm = self.mm_from_ps(self.goto_edit.text())
         self.delay_stage.goTo(pos_mm)
         i=0
